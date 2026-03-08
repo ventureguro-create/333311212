@@ -68,14 +68,8 @@ def format_proximity_alert(
     Format proximity alert message in Ukrainian.
     """
     # Event type emoji
-    type_emoji = {
-        "virus": "🦠",
-        "place": "📍",
-        "food": "🍔",
-        "venue": "🏛️",
-        "traffic": "🚗",
-        "infrastructure": "🏗️"
-    }.get(event_type, "📍")
+    type_emoji = "🦠" if event_type == "virus" else "🗑️"
+    type_label = "вірус" if event_type == "virus" else "сміття"
     
     # Time formatting
     if minutes_ago < 60:
@@ -97,6 +91,7 @@ def format_proximity_alert(
 ⚠️ <b>Увага — сигнал поблизу</b>
 
 {type_emoji} <b>{title}</b>
+Тип: {type_label}
 
 📏 Відстань: <b>{distance} м</b>
 🕐 Час: {time_str}
@@ -120,12 +115,14 @@ def format_multiple_events_alert(
     count = len(events)
     
     # Get types summary
-    types = {}
-    for e in events:
-        t = e.get("eventType", "place")
-        types[t] = types.get(t, 0) + 1
+    virus_count = sum(1 for e in events if e.get("eventType") == "virus")
+    trash_count = sum(1 for e in events if e.get("eventType") == "trash")
     
-    types_summary = ", ".join([f"{v}x {k}" for k, v in types.items()])
+    types_summary = []
+    if virus_count > 0:
+        types_summary.append(f"🦠 {virus_count} вірус")
+    if trash_count > 0:
+        types_summary.append(f"🗑️ {trash_count} сміття")
     
     # Nearest event
     nearest = events[0] if events else None
@@ -134,7 +131,7 @@ def format_multiple_events_alert(
 ⚠️ <b>Увага — {count} сигналів поблизу</b>
 
 📍 В радіусі {radius}м знайдено:
-{types_summary}
+{', '.join(types_summary)}
 
 """
     
@@ -156,16 +153,15 @@ async def send_test_alert(chat_id: int, bot_token: str = None) -> Dict:
     Send test alert to verify bot connection.
     """
     text = """
-✅ <b>Тест Geo Radar Bot</b>
+✅ <b>Geo Radar Bot підключено</b>
 
 Бот налаштовано правильно.
-Ви будете отримувати сповіщення про події поблизу.
+Ви будете отримувати сповіщення про події поблизу:
 
-Щоб налаштувати радіус:
-/radius 1000
+🦠 Вірус
+🗑️ Сміття
 
-Щоб вимкнути сповіщення:
-/stop
+Щоб налаштувати радіус — використовуйте веб-інтерфейс.
 """
     
     return await send_telegram_alert(chat_id, text.strip(), bot_token=bot_token)
