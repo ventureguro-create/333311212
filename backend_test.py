@@ -282,6 +282,78 @@ class GeoIntelAPITester:
                 
         return success
 
+    def test_intelligence_endpoints(self):
+        """Test Intelligence Module specific endpoints from review request"""
+        print("\n🧠 Testing Intelligence Module Endpoints...")
+        
+        # Test event types configuration - REQUIRED
+        success, data = self.run_test("Event Types Config", "GET", "/api/geo/config/event-types", 200)
+        if success and data:
+            types_data = data.get("types", {})
+            expected_types = ["virus", "trash", "rain", "heavy_rain"]
+            missing_types = [t for t in expected_types if t not in types_data]
+            
+            if not missing_types:
+                self.log_result("Event Types Content", True, f"All expected event types found: {expected_types}")
+                
+                # Check virus severity = 3
+                if types_data.get("virus", {}).get("severity") == 3:
+                    self.log_result("Virus Severity", True, "Virus severity is 3")
+                else:
+                    self.log_result("Virus Severity", False, f"Virus severity is {types_data.get('virus', {}).get('severity')}, expected 3")
+                
+                # Check heavy_rain severity = 4  
+                if types_data.get("heavy_rain", {}).get("severity") == 4:
+                    self.log_result("Heavy Rain Severity", True, "Heavy rain severity is 4")
+                else:
+                    self.log_result("Heavy Rain Severity", False, f"Heavy rain severity is {types_data.get('heavy_rain', {}).get('severity')}, expected 4")
+            else:
+                self.log_result("Event Types Content", False, f"Missing event types: {missing_types}")
+        
+        # Test probability predictions - REQUIRED
+        success, data = self.run_test("Probability Predictions", "GET", "/api/geo/probability", 200)
+        if success and data:
+            if "items" in data and isinstance(data["items"], list):
+                self.log_result("Probability Response", True, f"Probability data with {len(data['items'])} items")
+            else:
+                self.log_result("Probability Response", False, "Expected 'items' list in response")
+        
+        # Test rebuild probabilities - REQUIRED
+        self.run_test("Rebuild Probabilities", "POST", "/api/geo/probability/rebuild", 200)
+        
+        # Test fused events - REQUIRED
+        success, data = self.run_test("Fused Events", "GET", "/api/geo/fused", 200)
+        if success and data:
+            if "items" in data and isinstance(data["items"], list):
+                self.log_result("Fused Events Response", True, f"Fused events data with {len(data['items'])} items")
+            else:
+                self.log_result("Fused Events Response", False, "Expected 'items' list in response")
+        
+        # Test rebuild fusion - REQUIRED
+        self.run_test("Rebuild Fusion", "POST", "/api/geo/fused/rebuild", 200)
+        
+        # Test decay cycle - REQUIRED
+        self.run_test("Run Decay Cycle", "POST", "/api/geo/decay/run", 200)
+        
+        # Test AI summary in Ukrainian - REQUIRED
+        print("⏳ Testing AI Summary endpoint (may take a few seconds)...")
+        time.sleep(3)  # Give AI time for summary generation
+        success, data = self.run_test("AI Summary Ukrainian", "GET", "/api/geo/summary?days=7", 200)
+        if success and data:
+            summary_text = data.get("summary", "")
+            if summary_text and len(summary_text) > 10:
+                self.log_result("AI Summary Content", True, f"Generated summary with {len(summary_text)} characters")
+                
+                # Check if summary contains Ukrainian text patterns
+                ukrainian_patterns = ["подій", "район", "сміття", "дощ", "вірус"]
+                found_ukrainian = any(pattern in summary_text.lower() for pattern in ukrainian_patterns)
+                if found_ukrainian:
+                    self.log_result("Ukrainian Summary", True, "Summary contains Ukrainian text")
+                else:
+                    self.log_result("Ukrainian Summary", False, "Summary may not be in Ukrainian")
+            else:
+                self.log_result("AI Summary Content", False, "Empty or very short summary generated")
+    
     def test_additional_endpoints(self):
         """Test additional geo endpoints for completeness"""
         print("\n🔍 Testing Additional Geo Endpoints...")
@@ -297,14 +369,6 @@ class GeoIntelAPITester:
         
         # Test search endpoint
         self.run_test("Search Channels", "GET", "/api/geo/search/channels?q=test", 200)
-        
-        # Test summary endpoint (might take longer)
-        print("⏳ Testing AI Summary endpoint (may take a few seconds)...")
-        time.sleep(2)  # Give AI time if needed
-        self.run_test("Geo Summary", "GET", "/api/geo/summary?days=7", 200)
-        
-        # Test event types endpoint
-        self.run_test("Event Types", "GET", "/api/geo/event-types", 200)
 
     def run_all_tests(self):
         """Run all geo intel API tests"""
@@ -326,6 +390,9 @@ class GeoIntelAPITester:
         self.test_geo_stats()
         self.test_geo_stats_full()  # Required full stats endpoint
         self.test_geo_predict()  # Required predictions endpoint
+        
+        # Test Intelligence Module specific endpoints - REQUIRED by review request
+        self.test_intelligence_endpoints()
         
         # Seed data for testing
         self.test_geo_seed_data()

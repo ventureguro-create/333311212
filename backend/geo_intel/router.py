@@ -387,4 +387,62 @@ def build_geo_router(db, config) -> APIRouter:
         
         return await send_test_alert(int(chat_id))
     
+    # ==================== Probability Engine ====================
+    
+    @router.get("/probability")
+    async def get_probabilities(limit: int = Query(20)):
+        """Get places with highest event probability"""
+        from .services.probability_repository import ProbabilityRepository
+        repo = ProbabilityRepository(db)
+        items = await repo.get_top_probabilities(limit=limit)
+        return {"ok": True, "items": items}
+    
+    @router.post("/probability/rebuild")
+    async def rebuild_probabilities():
+        """Manually trigger probability recalculation"""
+        from .services.probability_repository import ProbabilityRepository
+        from .services.probability_engine import ProbabilityEngine
+        repo = ProbabilityRepository(db)
+        engine = ProbabilityEngine(repo)
+        result = await engine.rebuild()
+        return result
+    
+    # ==================== Fused Events ====================
+    
+    @router.get("/fused")
+    async def get_fused_events():
+        """Get active fused events (combined from multiple sources)"""
+        from .services.fusion_repository import FusionRepository
+        repo = FusionRepository(db)
+        items = await repo.get_active_fused_events()
+        return {"ok": True, "count": len(items), "items": items}
+    
+    @router.post("/fused/rebuild")
+    async def rebuild_fused():
+        """Manually trigger fusion recalculation"""
+        from .services.fusion_repository import FusionRepository
+        from .services.fusion_engine import FusionEngine
+        repo = FusionRepository(db)
+        engine = FusionEngine(repo)
+        result = await engine.rebuild()
+        return result
+    
+    # ==================== Signal Decay ====================
+    
+    @router.post("/decay/run")
+    async def run_decay():
+        """Manually trigger decay processing"""
+        from .services.signal_decay import DecayWorker
+        worker = DecayWorker(db)
+        result = await worker.run_once()
+        return result
+    
+    # ==================== Event Types Config ====================
+    
+    @router.get("/config/event-types")
+    async def get_event_types():
+        """Get event types configuration"""
+        from .config.event_types import EVENT_TYPES
+        return {"ok": True, "types": EVENT_TYPES}
+    
     return router

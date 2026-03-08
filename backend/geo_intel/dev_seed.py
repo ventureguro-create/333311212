@@ -75,8 +75,10 @@ PLACES = {
 }
 
 EVENT_TYPES = [
-    ("virus", 0.6),
-    ("trash", 0.4),
+    ("virus", 0.4),
+    ("trash", 0.3),
+    ("rain", 0.2),
+    ("heavy_rain", 0.1),
 ]
 
 CHANNELS = [
@@ -149,9 +151,15 @@ async def seed_geo_events(db, count=200):
         # Select event type
         event_type = select_event_type()
         
-        # Random time in last 7 days
-        hours_ago = random.randint(0, 168)  # 7 days
-        event_time = now - timedelta(hours=hours_ago)
+        # Random time - 30% in last hour (for fusion), 70% in last 7 days
+        if random.random() < 0.3:
+            # Fresh events for fusion testing
+            minutes_ago = random.randint(0, 60)
+            event_time = now - timedelta(minutes=minutes_ago)
+        else:
+            # Historical events
+            hours_ago = random.randint(1, 168)  # 7 days
+            event_time = now - timedelta(hours=hours_ago)
         
         # Random channel
         channel = random.choice(CHANNELS)

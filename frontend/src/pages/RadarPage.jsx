@@ -390,6 +390,8 @@ export default function RadarPage() {
                 <option value="all">Всі типи</option>
                 <option value="virus">🦠 Вірус</option>
                 <option value="trash">🗑️ Сміття</option>
+                <option value="rain">🌧️ Дощ</option>
+                <option value="heavy_rain">⛈️ Сильний дощ</option>
               </select>
               
               <button

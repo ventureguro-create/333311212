@@ -72,7 +72,15 @@ class GeoModule:
             await start_scheduler(self.db)
             logger.info("Geo Alert Scheduler started")
         except Exception as e:
-            logger.warning(f"Scheduler start failed (non-critical): {e}")
+            logger.warning(f"Alert scheduler start failed (non-critical): {e}")
+        
+        # Start intelligence scheduler (fusion, decay, probability)
+        try:
+            from .services.intelligence_scheduler import start_intelligence_scheduler
+            await start_intelligence_scheduler(self.db)
+            logger.info("Intelligence Scheduler started")
+        except Exception as e:
+            logger.warning(f"Intelligence scheduler start failed (non-critical): {e}")
         
         # Start geo event scheduler if enabled
         if self.config.enable_scheduler:

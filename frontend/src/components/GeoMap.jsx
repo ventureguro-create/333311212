@@ -72,34 +72,26 @@ const createUserIcon = () => {
 };
 
 // Custom icons - small colored dots with emoji/svg centers
-const createVirusIcon = (isInsideRadius = false) => {
-  const highlight = isInsideRadius ? 'class="radar-event-highlight"' : '';
-  return L.divIcon({
-    className: '',
-    html: `<span ${highlight} style="font-size:${isInsideRadius ? '18px' : '14px'};line-height:1;display:block;">🦠</span>`,
-    iconSize: [isInsideRadius ? 18 : 14, isInsideRadius ? 18 : 14],
-    iconAnchor: [isInsideRadius ? 9 : 7, isInsideRadius ? 9 : 7],
-    popupAnchor: [0, -7],
-  });
+// Event icons mapping
+const EVENT_ICONS = {
+  virus: "🦠",
+  trash: "🗑️",
+  rain: "🌧️",
+  heavy_rain: "⛈️"
 };
 
-const createTrashIcon = (isInsideRadius = false) => {
+const getEventIcon = (eventType, isInsideRadius = false) => {
+  const icon = EVENT_ICONS[eventType] || "📍";
   const size = isInsideRadius ? 18 : 14;
   const highlight = isInsideRadius ? 'class="radar-event-highlight"' : '';
+  
   return L.divIcon({
     className: '',
-    html: `<span ${highlight} style="font-size:${size}px;line-height:1;display:block;">🗑️</span>`,
+    html: `<span ${highlight} style="font-size:${size}px;line-height:1;display:block;">${icon}</span>`,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2],
     popupAnchor: [0, -7],
   });
-};
-
-const getEventIcon = (eventType, isInsideRadius = false) => {
-  if (eventType === 'virus') {
-    return createVirusIcon(isInsideRadius);
-  }
-  return createTrashIcon(isInsideRadius);
 };
 
 // Component to fit bounds to markers
