@@ -9,7 +9,7 @@ from typing import Optional
 
 from .services.aggregator import get_map_points, get_top_places, get_heatmap_data, get_event_types_stats
 from .services.proximity import get_nearby_events, evaluate_radar_alert
-from .services.summary import generate_geo_summary
+from .services.summary import generate_summary
 from .services.builder import build_geo_events_for_channel, rebuild_all_channels
 from .services.stats import get_place_stats, get_hourly_stats, get_weekday_stats, get_full_stats
 from .services.predictor import predict_hotspots, get_place_prediction
@@ -18,6 +18,8 @@ from .services.subscriptions import (
     get_subscription, get_active_subscriptions
 )
 from .services.notifier import send_test_alert, format_proximity_alert
+from .services.bot import start_bot, get_bot
+from .services.scheduler import start_scheduler, get_scheduler
 from .__version__ import VERSION
 
 logger = logging.getLogger(__name__)
@@ -104,10 +106,10 @@ def build_geo_router(db, config) -> APIRouter:
     @router.get("/summary")
     async def summary(
         days: int = Query(7, ge=1, le=90),
-        lang: str = Query("uk", description="Language: uk/ru/en")
+        use_llm: bool = Query(True, description="Use LLM for summary generation")
     ):
         """Get AI-generated summary of geo activity"""
-        return await generate_geo_summary(db, days=days, language=lang)
+        return await generate_summary(db, days=days, use_llm=use_llm)
     
     # ==================== Radar Channels Management ====================
     

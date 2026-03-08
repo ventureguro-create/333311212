@@ -49,7 +49,7 @@ class GeoModule:
         self._started = False
     
     async def start(self):
-        """Initialize module (indexes, scheduler)"""
+        """Initialize module (indexes, scheduler, bot)"""
         if self._started:
             return
         
@@ -58,12 +58,28 @@ class GeoModule:
         # Create indexes
         await ensure_geo_indexes(self.db)
         
-        # Start scheduler if enabled
+        # Start Telegram bot for alerts
+        try:
+            from .services.bot import start_bot
+            await start_bot(self.db)
+            logger.info("Geo Radar Bot started")
+        except Exception as e:
+            logger.warning(f"Bot start failed (non-critical): {e}")
+        
+        # Start alert scheduler
+        try:
+            from .services.scheduler import start_scheduler
+            await start_scheduler(self.db)
+            logger.info("Geo Alert Scheduler started")
+        except Exception as e:
+            logger.warning(f"Scheduler start failed (non-critical): {e}")
+        
+        # Start geo event scheduler if enabled
         if self.config.enable_scheduler:
             from .scheduler import GeoScheduler
             self.scheduler = GeoScheduler(self.db, self.config)
             self.scheduler.start()
-            logger.info("Geo scheduler started")
+            logger.info("Geo event scheduler started")
         
         self._started = True
         logger.info("Geo Intel Module started")
