@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from datetime import datetime
 
-EventType = Literal["place", "food", "venue", "weather", "traffic", "infrastructure", "public_event", "other"]
+EventType = Literal["virus", "trash"]
 GeoPrecision = Literal["exact", "approx", "city", "unknown"]
 
 class GeoPoint(BaseModel):

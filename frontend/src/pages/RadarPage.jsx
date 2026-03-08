@@ -388,11 +388,8 @@ export default function RadarPage() {
                 data-testid="type-filter"
               >
                 <option value="all">Всі типи</option>
-                <option value="place">Місця</option>
-                <option value="food">Їжа</option>
-                <option value="venue">Заклади</option>
-                <option value="traffic">Трафік</option>
-                <option value="infrastructure">Інфраструктура</option>
+                <option value="virus">🦠 Вірус</option>
+                <option value="trash">🗑️ Сміття</option>
               </select>
               
               <button

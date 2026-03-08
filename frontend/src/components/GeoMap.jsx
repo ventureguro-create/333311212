@@ -88,7 +88,7 @@ const createTrashIcon = (isInsideRadius = false) => {
   const highlight = isInsideRadius ? 'class="radar-event-highlight"' : '';
   return L.divIcon({
     className: '',
-    html: `<svg ${highlight} width="${size}" height="${size}" viewBox="0 0 24 24" fill="#3b82f6" stroke="none"><path d="M3 6h18v2H3V6zm2 3h14l-1.5 13h-11L5 9zm4-6h6v2H9V3z"/></svg>`,
+    html: `<span ${highlight} style="font-size:${size}px;line-height:1;display:block;">🗑️</span>`,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2],
     popupAnchor: [0, -7],
@@ -96,7 +96,7 @@ const createTrashIcon = (isInsideRadius = false) => {
 };
 
 const getEventIcon = (eventType, isInsideRadius = false) => {
-  if (eventType === 'virus' || eventType === 'place' || eventType === 'food' || eventType === 'venue') {
+  if (eventType === 'virus') {
     return createVirusIcon(isInsideRadius);
   }
   return createTrashIcon(isInsideRadius);

@@ -75,13 +75,8 @@ PLACES = {
 }
 
 EVENT_TYPES = [
-    ("place", 0.35),
-    ("food", 0.25),
-    ("venue", 0.15),
-    ("traffic", 0.10),
-    ("public_event", 0.08),
-    ("infrastructure", 0.05),
-    ("weather", 0.02),
+    ("virus", 0.6),
+    ("trash", 0.4),
 ]
 
 CHANNELS = [
