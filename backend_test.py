@@ -282,6 +282,174 @@ class GeoIntelAPITester:
                 
         return success
 
+    def test_playback_endpoints(self):
+        """Test Playback Control endpoints - REQUIRED by review request"""
+        print("\n📹 Testing Playback Control Endpoints...")
+        
+        # Test basic playback with specified parameters
+        success, data = self.run_test("Playback Frames (24h, 30min)", "GET", "/api/geo/playback?hours=24&step=30", 200)
+        if success and data:
+            expected_fields = ["ok", "frames", "totalEvents", "hours", "stepMinutes"]
+            missing_fields = [field for field in expected_fields if field not in data]
+            
+            if not missing_fields:
+                self.log_result("Playback Response Structure", True, "All required fields present")
+                
+                # Check frames structure
+                frames = data.get("frames", [])
+                if isinstance(frames, list):
+                    self.log_result("Playback Frames", True, f"Frames list with {len(frames)} items")
+                    
+                    if len(frames) > 0:
+                        frame = frames[0]
+                        frame_fields = ["timestamp", "timestampLocal", "events"]
+                        missing_frame_fields = [field for field in frame_fields if field not in frame]
+                        
+                        if not missing_frame_fields:
+                            self.log_result("Frame Structure", True, "Frame has required fields")
+                        else:
+                            self.log_result("Frame Structure", False, f"Missing fields in frame: {missing_frame_fields}")
+                else:
+                    self.log_result("Playback Frames", False, "Frames should be a list")
+            else:
+                self.log_result("Playback Response Structure", False, f"Missing fields: {missing_fields}")
+        
+        # Test playback summary
+        self.run_test("Playback Summary", "GET", "/api/geo/playback/summary?hours=24", 200)
+
+    def test_risk_map_endpoints(self):
+        """Test Risk Map endpoints - REQUIRED by review request"""
+        print("\n🗺️ Testing Risk Map Endpoints...")
+        
+        # Test risk zones with 7 days
+        success, data = self.run_test("Risk Map Zones (7 days)", "GET", "/api/geo/risk?days=7", 200)
+        if success and data:
+            expected_fields = ["ok", "zones", "totalZones"]
+            missing_fields = [field for field in expected_fields if field not in data]
+            
+            if not missing_fields:
+                self.log_result("Risk Map Response Structure", True, "All required fields present")
+                
+                # Check zones structure
+                zones = data.get("zones", [])
+                if isinstance(zones, list):
+                    self.log_result("Risk Zones", True, f"Zones list with {len(zones)} items")
+                    
+                    if len(zones) > 0:
+                        zone = zones[0]
+                        zone_fields = ["lat", "lng", "riskScore", "riskLevel"]
+                        missing_zone_fields = [field for field in zone_fields if field not in zone]
+                        
+                        if not missing_zone_fields:
+                            self.log_result("Risk Zone Structure", True, "Zone has required fields")
+                            
+                            # Check risk levels
+                            risk_level = zone.get("riskLevel")
+                            valid_levels = ["critical", "high", "medium", "low", "minimal"]
+                            if risk_level in valid_levels:
+                                self.log_result("Risk Level Values", True, f"Valid risk level: {risk_level}")
+                            else:
+                                self.log_result("Risk Level Values", False, f"Invalid risk level: {risk_level}")
+                        else:
+                            self.log_result("Risk Zone Structure", False, f"Missing fields in zone: {missing_zone_fields}")
+                else:
+                    self.log_result("Risk Zones", False, "Zones should be a list")
+            else:
+                self.log_result("Risk Map Response Structure", False, f"Missing fields: {missing_fields}")
+        
+        # Test location-specific risk as mentioned in review request
+        success, data = self.run_test("Location Risk Check", "GET", "/api/geo/risk/location?lat=50.45&lng=30.52&radius=500", 200)
+        if success and data:
+            location_fields = ["ok", "lat", "lng", "riskScore", "riskLevel", "eventCount"]
+            missing_location_fields = [field for field in location_fields if field not in data]
+            
+            if not missing_location_fields:
+                self.log_result("Location Risk Structure", True, "Location risk has required fields")
+                
+                # Verify coordinates match
+                if abs(data.get("lat", 0) - 50.45) < 0.01 and abs(data.get("lng", 0) - 30.52) < 0.01:
+                    self.log_result("Location Coordinates", True, "Coordinates match request")
+                else:
+                    self.log_result("Location Coordinates", False, "Coordinates don't match request")
+            else:
+                self.log_result("Location Risk Structure", False, f"Missing fields: {missing_location_fields}")
+
+    def test_route_safety_endpoints(self):
+        """Test Route Safety endpoints - REQUIRED by review request"""
+        print("\n🛣️ Testing Route Safety Endpoints...")
+        
+        # Test route safety check with sample route
+        route_data = {
+            "points": [
+                {"lat": 50.4501, "lng": 30.5234},
+                {"lat": 50.4521, "lng": 30.5254},
+                {"lat": 50.4541, "lng": 30.5274},
+                {"lat": 50.4561, "lng": 30.5294}
+            ],
+            "days": 3
+        }
+        success, data = self.run_test("Route Safety Check", "POST", "/api/geo/route/check", 200, route_data)
+        if success and data:
+            route_fields = ["ok", "isSafe", "hazards", "riskScore", "message"]
+            missing_route_fields = [field for field in route_fields if field not in data]
+            
+            if not missing_route_fields:
+                self.log_result("Route Safety Structure", True, "Route safety has required fields")
+                
+                # Check Ukrainian message
+                message = data.get("message", "")
+                if any(char in message for char in "абвгґдеєжзийіїклмнопрстуфхцчшщьюя"):
+                    self.log_result("Ukrainian Route Message", True, "Route message contains Ukrainian text")
+                else:
+                    self.log_result("Ukrainian Route Message", False, "Route message may not be in Ukrainian")
+                
+                # Check hazards structure
+                hazards = data.get("hazards", [])
+                if isinstance(hazards, list):
+                    self.log_result("Route Hazards", True, f"Hazards list with {len(hazards)} items")
+                    
+                    if len(hazards) > 0:
+                        hazard = hazards[0]
+                        hazard_fields = ["eventType", "lat", "lng", "distance", "severity"]
+                        missing_hazard_fields = [field for field in hazard_fields if field not in hazard]
+                        
+                        if not missing_hazard_fields:
+                            self.log_result("Hazard Structure", True, "Hazard has required fields")
+                        else:
+                            self.log_result("Hazard Structure", False, f"Missing fields in hazard: {missing_hazard_fields}")
+                else:
+                    self.log_result("Route Hazards", False, "Hazards should be a list")
+            else:
+                self.log_result("Route Safety Structure", False, f"Missing fields: {missing_route_fields}")
+        
+        # Test safe direction endpoint as mentioned in review request
+        success, data = self.run_test("Safe Direction", "GET", "/api/geo/route/direction?lat=50.45&lng=30.52", 200)
+        if success and data:
+            direction_fields = ["ok", "currentLocation", "sectors", "safestDirection"]
+            missing_direction_fields = [field for field in direction_fields if field not in data]
+            
+            if not missing_direction_fields:
+                self.log_result("Safe Direction Structure", True, "Safe direction has required fields")
+                
+                # Check sectors (N, NE, E, SE, S, SW, W, NW)
+                sectors = data.get("sectors", {})
+                expected_sectors = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+                missing_sectors = [s for s in expected_sectors if s not in sectors]
+                
+                if not missing_sectors:
+                    self.log_result("Direction Sectors", True, "All 8 compass sectors present")
+                else:
+                    self.log_result("Direction Sectors", False, f"Missing sectors: {missing_sectors}")
+                    
+                # Check safest direction is valid
+                safest = data.get("safestDirection")
+                if safest in expected_sectors:
+                    self.log_result("Safest Direction Valid", True, f"Safest direction: {safest}")
+                else:
+                    self.log_result("Safest Direction Valid", False, f"Invalid safest direction: {safest}")
+            else:
+                self.log_result("Safe Direction Structure", False, f"Missing fields: {missing_direction_fields}")
+
     def test_intelligence_endpoints(self):
         """Test Intelligence Module specific endpoints from review request"""
         print("\n🧠 Testing Intelligence Module Endpoints...")
@@ -383,6 +551,11 @@ class GeoIntelAPITester:
         if not health_ok:
             print("❌ CRITICAL: Health check failed. Backend may not be running or accessible.")
             return False
+        
+        # Test REQUIRED endpoints from review request
+        self.test_playback_endpoints()       # NEW: Playback Control
+        self.test_risk_map_endpoints()       # NEW: Risk Map
+        self.test_route_safety_endpoints()   # NEW: Route Safety
             
         # Continue with main endpoints
         self.test_geo_map()

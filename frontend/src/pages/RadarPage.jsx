@@ -17,9 +17,15 @@ import {
   Navigation,
   Target,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Shield,
+  Route,
+  Play
 } from 'lucide-react';
 import GeoMap from '../components/GeoMap';
+import PlaybackControl from '../components/PlaybackControl';
+import RiskHeatmap from '../components/RiskHeatmap';
+import RouteSafety from '../components/RouteSafety';
 
 const API_BASE = process.env.REACT_APP_BACKEND_URL || '';
 
@@ -71,6 +77,17 @@ export default function RadarPage() {
   // Selected marker for highlighting
   const [selectedMarkerId, setSelectedMarkerId] = useState(null);
   const [mapRef, setMapRef] = useState(null);
+  
+  // Playback mode
+  const [playbackMode, setPlaybackMode] = useState(false);
+  const [playbackFrame, setPlaybackFrame] = useState(null);
+  
+  // Risk zones
+  const [riskZones, setRiskZones] = useState([]);
+  const [showRisk, setShowRisk] = useState(false);
+  
+  // Route hazards
+  const [routeHazards, setRouteHazards] = useState([]);
   
   // Handle marker click from sidebar - fly to location
   const handleMarkerSelect = (point) => {
@@ -335,6 +352,15 @@ export default function RadarPage() {
                 data-testid="view-stats-btn"
               >
                 <BarChart3 className="w-4 h-4" /> Статистика
+              </button>
+              <button
+                onClick={() => setView('tools')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                  view === 'tools' ? 'bg-teal-600 text-white' : 'text-gray-600 hover:text-gray-900'
+                }`}
+                data-testid="view-tools-btn"
+              >
+                <Shield className="w-4 h-4" /> Інструменти
               </button>
             </div>
             
@@ -672,6 +698,42 @@ export default function RadarPage() {
               </div>
             )}
           </div>
+          
+          {/* Tools View */}
+          {view === 'tools' && (
+            <div className="col-span-9 grid grid-cols-3 gap-4">
+              {/* Playback Control */}
+              <div className="col-span-2">
+                <PlaybackControl 
+                  onFrameChange={(frame) => {
+                    setPlaybackFrame(frame);
+                    if (frame?.events) {
+                      setMapPoints(frame.events);
+                    }
+                  }}
+                  onPlaybackData={(data) => console.log('Playback data:', data)}
+                />
+              </div>
+              
+              {/* Risk Heatmap */}
+              <div>
+                <RiskHeatmap 
+                  onRiskZonesChange={(zones) => {
+                    setRiskZones(zones);
+                    setShowRisk(zones.length > 0);
+                  }}
+                />
+              </div>
+              
+              {/* Route Safety */}
+              <div className="col-span-3">
+                <RouteSafety 
+                  userLocation={userLocation}
+                  onHazardsChange={(hazards) => setRouteHazards(hazards)}
+                />
+              </div>
+            </div>
+          )}
           
           {/* Right Sidebar */}
           <aside className="col-span-3 space-y-4">

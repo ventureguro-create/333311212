@@ -445,4 +445,75 @@ def build_geo_router(db, config) -> APIRouter:
         from .config.event_types import EVENT_TYPES
         return {"ok": True, "types": EVENT_TYPES}
     
+    # ==================== Playback ====================
+    
+    @router.get("/playback")
+    async def get_playback(
+        hours: int = Query(24, ge=1, le=168),
+        step: int = Query(30, ge=5, le=120)
+    ):
+        """Get activity playback frames for timeline replay"""
+        from .services.playback import build_playback_frames
+        return await build_playback_frames(db, hours=hours, step_minutes=step)
+    
+    @router.get("/playback/summary")
+    async def get_playback_summary(hours: int = Query(24)):
+        """Get summary statistics for playback period"""
+        from .services.playback import get_playback_summary as playback_summary
+        return await playback_summary(db, hours=hours)
+    
+    # ==================== Risk Map ====================
+    
+    @router.get("/risk")
+    async def get_risk_map(
+        days: int = Query(7, ge=1, le=30),
+        precision: int = Query(3, ge=2, le=4)
+    ):
+        """Get risk map with severity-weighted zones"""
+        from .services.risk_map import build_risk_map
+        return await build_risk_map(db, days=days, grid_precision=precision)
+    
+    @router.get("/risk/location")
+    async def get_location_risk(
+        lat: float = Query(...),
+        lng: float = Query(...),
+        radius: int = Query(500),
+        days: int = Query(7)
+    ):
+        """Get risk score for specific location"""
+        from .services.risk_map import get_risk_at_location
+        return await get_risk_at_location(db, lat=lat, lng=lng, radius_m=radius, days=days)
+    
+    # ==================== Route Safety ====================
+    
+    @router.post("/route/check")
+    async def check_route(request: Request):
+        """Check route for safety hazards"""
+        from .services.route_safety import check_route_safety
+        body = await request.json()
+        route_points = body.get("points", [])
+        days = body.get("days", 3)
+        return await check_route_safety(db, route_points=route_points, days=days)
+    
+    @router.post("/route/avoidance")
+    async def get_route_avoidance(request: Request):
+        """Get zones to avoid between two points"""
+        from .services.route_safety import suggest_avoidance
+        body = await request.json()
+        start = body.get("start", {})
+        end = body.get("end", {})
+        days = body.get("days", 3)
+        return await suggest_avoidance(db, start=start, end=end, days=days)
+    
+    @router.get("/route/direction")
+    async def get_safe_direction(
+        lat: float = Query(...),
+        lng: float = Query(...),
+        radius: int = Query(1000),
+        days: int = Query(3)
+    ):
+        """Get safest direction to move from location"""
+        from .services.route_safety import get_safest_direction
+        return await get_safest_direction(db, lat=lat, lng=lng, radius_m=radius, days=days)
+    
     return router
