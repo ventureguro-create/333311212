@@ -11,6 +11,13 @@ from .services.aggregator import get_map_points, get_top_places, get_heatmap_dat
 from .services.proximity import get_nearby_events, evaluate_radar_alert
 from .services.summary import generate_geo_summary
 from .services.builder import build_geo_events_for_channel, rebuild_all_channels
+from .services.stats import get_place_stats, get_hourly_stats, get_weekday_stats, get_full_stats
+from .services.predictor import predict_hotspots, get_place_prediction
+from .services.subscriptions import (
+    create_subscription, update_location, unsubscribe, 
+    get_subscription, get_active_subscriptions
+)
+from .services.notifier import send_test_alert, format_proximity_alert
 from .__version__ import VERSION
 
 logger = logging.getLogger(__name__)
@@ -276,5 +283,106 @@ def build_geo_router(db, config) -> APIRouter:
             "dailyActivity": daily_activity,
             "days": days
         }
+    
+    # ==================== Extended Stats ====================
+    
+    @router.get("/stats/places")
+    async def stats_places(days: int = Query(30), limit: int = Query(20)):
+        """Get top places statistics"""
+        return await get_place_stats(db, days=days, limit=limit)
+    
+    @router.get("/stats/hourly")
+    async def stats_hourly(days: int = Query(7)):
+        """Get hourly activity distribution"""
+        return await get_hourly_stats(db, days=days)
+    
+    @router.get("/stats/weekday")
+    async def stats_weekday(days: int = Query(30)):
+        """Get weekday activity distribution"""
+        return await get_weekday_stats(db, days=days)
+    
+    @router.get("/stats/full")
+    async def stats_full(days: int = Query(30)):
+        """Get full statistics dashboard data"""
+        return await get_full_stats(db, days=days)
+    
+    # ==================== Predictions ====================
+    
+    @router.get("/predict")
+    async def predict(days: int = Query(30), limit: int = Query(10)):
+        """Get predicted hotspots based on historical data"""
+        return await predict_hotspots(db, days=days, limit=limit)
+    
+    @router.get("/predict/{title}")
+    async def predict_place(title: str):
+        """Get prediction for specific place"""
+        return await get_place_prediction(db, title=title)
+    
+    # ==================== Alert Subscriptions ====================
+    
+    @router.post("/alerts/subscribe")
+    async def subscribe_alert(request: Request):
+        """Subscribe to proximity alerts"""
+        body = await request.json()
+        
+        actor_id = body.get("actorId")
+        chat_id = body.get("telegramChatId")
+        lat = body.get("lat")
+        lng = body.get("lng")
+        radius = body.get("radius", 1000)
+        event_types = body.get("eventTypes")
+        
+        if not actor_id or not chat_id:
+            raise HTTPException(status_code=400, detail="actorId and telegramChatId required")
+        
+        if lat is None or lng is None:
+            raise HTTPException(status_code=400, detail="lat and lng required")
+        
+        return await create_subscription(
+            db, 
+            actor_id=actor_id,
+            telegram_chat_id=int(chat_id),
+            lat=float(lat),
+            lng=float(lng),
+            radius=int(radius),
+            event_types=event_types
+        )
+    
+    @router.post("/alerts/location")
+    async def update_alert_location(request: Request):
+        """Update user location for alerts"""
+        body = await request.json()
+        actor_id = body.get("actorId")
+        lat = body.get("lat")
+        lng = body.get("lng")
+        
+        if not actor_id or lat is None or lng is None:
+            raise HTTPException(status_code=400, detail="actorId, lat, lng required")
+        
+        return await update_location(db, actor_id, float(lat), float(lng))
+    
+    @router.delete("/alerts/subscribe/{actor_id}")
+    async def unsubscribe_alert(actor_id: str):
+        """Unsubscribe from alerts"""
+        return await unsubscribe(db, actor_id)
+    
+    @router.get("/alerts/subscription/{actor_id}")
+    async def get_alert_subscription(actor_id: str):
+        """Get subscription status"""
+        sub = await get_subscription(db, actor_id)
+        if not sub:
+            return {"ok": True, "subscribed": False}
+        return {"ok": True, "subscribed": True, "subscription": sub}
+    
+    @router.post("/alerts/test")
+    async def test_alert(request: Request):
+        """Send test alert to verify bot connection"""
+        body = await request.json()
+        chat_id = body.get("telegramChatId")
+        
+        if not chat_id:
+            raise HTTPException(status_code=400, detail="telegramChatId required")
+        
+        return await send_test_alert(int(chat_id))
     
     return router

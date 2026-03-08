@@ -2,7 +2,7 @@
  * Radar Page - Geo Intelligence Module
  * Clean layout - no sidebar, no topbar
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   MapPin,
   RefreshCw,
@@ -13,7 +13,11 @@ import {
   Sparkles,
   Map,
   List,
-  BarChart3
+  BarChart3,
+  Navigation,
+  Target,
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 import GeoMap from '../components/GeoMap';
 
@@ -23,6 +27,14 @@ export default function RadarPage() {
   // State
   const [view, setView] = useState('map');
   const [loading, setLoading] = useState(false);
+  
+  // Radar mode
+  const [radarMode, setRadarMode] = useState(false);
+  const [radarRadius, setRadarRadius] = useState(1000);
+  const [radarPoints, setRadarPoints] = useState([]);
+  const [radarLoading, setRadarLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const radarIntervalRef = useRef(null);
   
   // Channels
   const [channels, setChannels] = useState([]);
@@ -48,6 +60,10 @@ export default function RadarPage() {
   // Stats
   const [stats, setStats] = useState(null);
   
+  // Extended stats
+  const [hourlyStats, setHourlyStats] = useState(null);
+  const [predictions, setPredictions] = useState(null);
+  
   // Filters
   const [days, setDays] = useState(7);
   const [eventType, setEventType] = useState('all');
@@ -61,6 +77,56 @@ export default function RadarPage() {
     setSelectedMarkerId(point.id);
     // Map will handle the fly-to via the selectedMarkerId prop
   };
+  
+  // Handle user location change
+  const handleUserLocationChange = useCallback((location) => {
+    setUserLocation(location);
+  }, []);
+  
+  // Fetch radar events near user
+  const fetchRadarEvents = useCallback(async (lat, lng, radius) => {
+    if (!lat || !lng) return;
+    
+    setRadarLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/geo/radar?lat=${lat}&lng=${lng}&radius=${radius}&days=${days}`);
+      const data = await res.json();
+      if (data.ok) {
+        setRadarPoints(data.items || []);
+      }
+    } catch (err) {
+      console.error('Radar fetch error:', err);
+    } finally {
+      setRadarLoading(false);
+    }
+  }, [days]);
+  
+  // Toggle radar mode
+  const toggleRadarMode = useCallback(() => {
+    setRadarMode(prev => !prev);
+  }, []);
+  
+  // Auto-refresh radar when user location changes
+  useEffect(() => {
+    if (radarMode && userLocation) {
+      fetchRadarEvents(userLocation.lat, userLocation.lng, radarRadius);
+    }
+  }, [radarMode, userLocation, radarRadius, fetchRadarEvents]);
+  
+  // Auto-refresh radar every 20 seconds
+  useEffect(() => {
+    if (radarMode && userLocation) {
+      radarIntervalRef.current = setInterval(() => {
+        fetchRadarEvents(userLocation.lat, userLocation.lng, radarRadius);
+      }, 20000);
+    }
+    
+    return () => {
+      if (radarIntervalRef.current) {
+        clearInterval(radarIntervalRef.current);
+      }
+    };
+  }, [radarMode, userLocation, radarRadius, fetchRadarEvents]);
   
   // Fetch radar channels
   const fetchChannels = useCallback(async () => {
@@ -250,7 +316,7 @@ export default function RadarPage() {
                 }`}
                 data-testid="view-map-btn"
               >
-                <Map className="w-4 h-4" /> Map
+                <Map className="w-4 h-4" /> Карта
               </button>
               <button
                 onClick={() => setView('list')}
@@ -259,7 +325,7 @@ export default function RadarPage() {
                 }`}
                 data-testid="view-list-btn"
               >
-                <List className="w-4 h-4" /> List
+                <List className="w-4 h-4" /> Список
               </button>
               <button
                 onClick={() => setView('stats')}
@@ -268,8 +334,38 @@ export default function RadarPage() {
                 }`}
                 data-testid="view-stats-btn"
               >
-                <BarChart3 className="w-4 h-4" /> Stats
+                <BarChart3 className="w-4 h-4" /> Статистика
               </button>
+            </div>
+            
+            {/* Radar Mode Toggle */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleRadarMode}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  radarMode 
+                    ? 'bg-teal-600 text-white shadow-md' 
+                    : 'bg-white border border-gray-200 text-gray-700 hover:border-teal-400'
+                }`}
+                data-testid="radar-mode-btn"
+              >
+                <Target className={`w-4 h-4 ${radarMode ? 'animate-pulse' : ''}`} />
+                {radarMode ? 'Радар ON' : 'Радар OFF'}
+              </button>
+              
+              {radarMode && (
+                <select
+                  value={radarRadius}
+                  onChange={(e) => setRadarRadius(Number(e.target.value))}
+                  className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
+                  data-testid="radar-radius-select"
+                >
+                  <option value={500}>500 м</option>
+                  <option value={1000}>1 км</option>
+                  <option value={2000}>2 км</option>
+                  <option value={5000}>5 км</option>
+                </select>
+              )}
             </div>
             
             {/* Filters */}
@@ -280,9 +376,9 @@ export default function RadarPage() {
                 className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
                 data-testid="days-filter"
               >
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-                <option value={30}>30 days</option>
+                <option value={7}>7 днів</option>
+                <option value={14}>14 днів</option>
+                <option value={30}>30 днів</option>
               </select>
               
               <select
@@ -291,12 +387,12 @@ export default function RadarPage() {
                 className="bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700"
                 data-testid="type-filter"
               >
-                <option value="all">All Types</option>
-                <option value="place">Places</option>
-                <option value="food">Food</option>
-                <option value="venue">Venues</option>
-                <option value="traffic">Traffic</option>
-                <option value="infrastructure">Infrastructure</option>
+                <option value="all">Всі типи</option>
+                <option value="place">Місця</option>
+                <option value="food">Їжа</option>
+                <option value="venue">Заклади</option>
+                <option value="traffic">Трафік</option>
+                <option value="infrastructure">Інфраструктура</option>
               </select>
               
               <button
@@ -426,12 +522,18 @@ export default function RadarPage() {
                 ) : mapPoints.length === 0 ? (
                   <div className="h-[500px] flex flex-col items-center justify-center bg-gray-50">
                     <MapPin className="w-16 h-16 text-gray-300 mb-4" />
-                    <p className="text-gray-500 font-medium">No geo events</p>
-                    <p className="text-sm text-gray-400 mt-1">Add channels and rebuild to see events</p>
+                    <p className="text-gray-500 font-medium">Немає geo подій</p>
+                    <p className="text-sm text-gray-400 mt-1">Додайте канали та перебудуйте для показу подій</p>
                   </div>
                 ) : (
                   <div className="h-[500px]">
-                    <GeoMap points={mapPoints} selectedMarkerId={selectedMarkerId} />
+                    <GeoMap 
+                      points={radarMode ? radarPoints : mapPoints} 
+                      selectedMarkerId={selectedMarkerId}
+                      radarMode={radarMode}
+                      radarRadius={radarRadius}
+                      onUserLocationChange={handleUserLocationChange}
+                    />
                   </div>
                 )}
               </div>
@@ -442,24 +544,42 @@ export default function RadarPage() {
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                     <List className="w-4 h-4 text-teal-500" />
-                    All Events
+                    {radarMode ? 'Поблизу' : 'Всі події'}
                   </h3>
-                  <span className="text-xs text-gray-500">{mapPoints.length} events</span>
+                  <span className="text-xs text-gray-500">
+                    {radarMode ? radarPoints.length : mapPoints.length} подій
+                  </span>
                 </div>
                 
                 <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100">
-                  {mapPoints.length === 0 ? (
+                  {(radarMode ? radarPoints : mapPoints).length === 0 ? (
                     <div className="p-8 text-center">
                       <List className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No events yet</p>
+                      <p className="text-sm text-gray-500">
+                        {radarMode ? 'Увімкніть геолокацію для пошуку подій поруч' : 'Ще немає подій'}
+                      </p>
                     </div>
                   ) : (
-                    mapPoints.map((event, i) => (
-                      <div key={event.id || i} className="px-4 py-3 hover:bg-gray-50">
+                    (radarMode ? radarPoints : mapPoints).map((event, i) => (
+                      <div 
+                        key={event.id || i} 
+                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
+                          event.isInsideRadius ? 'bg-teal-50 border-l-2 border-teal-500' : ''
+                        }`}
+                        onClick={() => handleMarkerSelect(event)}
+                      >
                         <div className="flex items-start justify-between">
                           <div>
                             <h4 className="text-sm font-medium text-gray-900">{event.title}</h4>
                             <p className="text-xs text-gray-500 mt-0.5">{event.addressText}</p>
+                            {event.distanceMeters !== undefined && (
+                              <p className={`text-xs mt-1 font-medium ${event.isInsideRadius ? 'text-teal-600' : 'text-gray-500'}`}>
+                                📏 {event.distanceMeters < 1000 ? `${event.distanceMeters} м` : `${(event.distanceMeters/1000).toFixed(1)} км`}
+                                {event.minutesAgo !== undefined && (
+                                  <> • 🕐 {event.minutesAgo < 60 ? `${event.minutesAgo} хв` : `${Math.floor(event.minutesAgo/60)} год`} тому</>
+                                )}
+                              </p>
+                            )}
                           </div>
                           <span className={`text-xs px-2 py-0.5 rounded ${
                             event.eventType === 'food' ? 'bg-orange-100 text-orange-700' :
